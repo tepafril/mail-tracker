@@ -6,9 +6,27 @@
 #   - target: web  -> Caddy serving public/ + reverse-proxying PHP (auto TLS)
 
 ############################################
-# 1. Composer dependencies (no dev, no scripts)
+# 1. PHP base: extensions this app needs + composer binary
+#    (vendor + app both build FROM this, so Composer's platform checks
+#     — e.g. laravel/horizon requiring ext-pcntl — pass.)
 ############################################
-FROM composer:2 AS vendor
+FROM php:8.4-fpm-bookworm AS base
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      $PHPIZE_DEPS libicu-dev libzip-dev libpq-dev unzip \
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install -j"$(nproc)" \
+      pdo_mysql pdo_pgsql bcmath pcntl intl zip opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get purge -y --auto-remove $PHPIZE_DEPS \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/php-prod.ini /usr/local/etc/php/conf.d/zz-prod.ini
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+############################################
+# 2. Composer dependencies (no dev, no scripts)
+############################################
+FROM base AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install \
@@ -19,7 +37,7 @@ RUN composer install \
       --no-autoloader
 
 ############################################
-# 2. Front-end assets (Vite build -> public/build)
+# 3. Front-end assets (Vite build -> public/build)
 ############################################
 FROM node:22-bookworm-slim AS assets
 WORKDIR /app
@@ -30,28 +48,10 @@ COPY resources ./resources
 RUN npm run build
 
 ############################################
-# 3. PHP base with the extensions this app needs
-############################################
-FROM php:8.4-fpm-bookworm AS base
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      libicu-dev libzip-dev libpq-dev unzip \
-    && docker-php-ext-configure intl \
-    && docker-php-ext-install -j"$(nproc)" \
-      pdo_mysql pdo_pgsql bcmath pcntl intl zip opcache \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apt-get purge -y --auto-remove \
-    && rm -rf /var/lib/apt/lists/*
-COPY docker/php-prod.ini /usr/local/etc/php/conf.d/zz-prod.ini
-
-############################################
 # 4. Final application image (PHP-FPM)
 ############################################
 FROM base AS app
 WORKDIR /var/www/html
-
-# Composer binary (reused from the vendor stage image) for autoloader dump
-COPY --from=vendor /usr/bin/composer /usr/local/bin/composer
 
 # Application source + vendored deps + built assets
 COPY . .
