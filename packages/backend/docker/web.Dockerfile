@@ -16,10 +16,10 @@ FROM node:22-bookworm-slim AS addin
 WORKDIR /repo
 
 # Workspace manifests first for a cached install layer.
+# (packages/addin-gmail is docs-only — no package.json — so npm skips it.)
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/package.json
 COPY packages/addin-outlook/package.json packages/addin-outlook/package.json
-COPY packages/addin-gmail/package.json packages/addin-gmail/package.json
 RUN npm ci
 
 # Sources, then build the shared contract and the add-in bundle.
