@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SMOH Mail Tracker — Outlook add-in (XML add-in-only manifest).
+
+  Why XML (not the unified JSON manifest): the unified manifest drops Outlook on Mac and
+  mobile, which we must support (MASTER-PLAN §9). Mailbox requirement set 1.15 is required
+  for OnMessageSend Smart Alerts. Replace the Id GUID and the https://localhost:3000 URLs
+  with your registered app id and hosting origin before publishing.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+  xsi:type="MailApp">
+
+  <Id>11111111-2222-3333-4444-555555555555</Id>
+  <Version>0.1.0</Version>
+  <ProviderName>SMOH</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="SMOH Mail Tracker" />
+  <Description DefaultValue="Log Outlook email to your SMOH CRM — one click, or automatically on send." />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://localhost:3000/support" />
+
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Mailbox" />
+  </Hosts>
+
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.15" />
+    </Sets>
+  </Requirements>
+
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://localhost:3000/taskpane.html" />
+        <RequestedHeight>250</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <!-- Office-level permission (NOT a Graph scope): read the item body + intercept send. -->
+  <Permissions>ReadWriteItem</Permissions>
+
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
+  </Rule>
+
+  <DisableEntityHighlighting>false</DisableEntityHighlighting>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
+
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.15">
+          <bt:Set Name="Mailbox" MinVersion="1.15" />
+        </bt:Sets>
+      </Requirements>
+
+      <Hosts>
+        <Host xsi:type="MailHost">
+
+          <!-- Event runtime hosting commands.js (OnMessageSend handler). -->
+          <Runtimes>
+            <Runtime resid="WebViewRuntime.Url">
+              <Override type="javascript" resid="JSRuntime.Url" />
+            </Runtime>
+          </Runtimes>
+
+          <DesktopFormFactor>
+            <!-- Shared JS file for command/function actions. -->
+            <FunctionFile resid="Commands.Url" />
+
+            <!-- Task pane button on the message-read ribbon. -->
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="smohGroup">
+                  <Label resid="Group.Label" />
+                  <Control xsi:type="Button" id="openTaskpaneButton">
+                    <Label resid="Taskpane.Button.Label" />
+                    <Supertip>
+                      <Title resid="Taskpane.Button.Label" />
+                      <Description resid="Taskpane.Button.Tooltip" />
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16" />
+                      <bt:Image size="32" resid="Icon.32" />
+                      <bt:Image size="80" resid="Icon.80" />
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.Url" />
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
+            <!-- The flagship: intercept send. SendMode=SoftBlock keeps it Marketplace-eligible
+                 (§5.4) — the user can still send if logging fails. -->
+            <ExtensionPoint xsi:type="LaunchEvent">
+              <LaunchEvents>
+                <LaunchEvent Type="OnMessageSend" FunctionName="onMessageSendHandler" SendMode="SoftBlock" />
+              </LaunchEvents>
+              <SourceLocation resid="WebViewRuntime.Url" />
+            </ExtensionPoint>
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+
+      <Resources>
+        <bt:Images>
+          <bt:Image id="Icon.16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
+          <bt:Image id="Icon.32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
+          <bt:Image id="Icon.80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+        </bt:Images>
+        <bt:Urls>
+          <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
+          <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
+          <!-- WebView runtimes (OWA / new Outlook Windows / Mac) load the HTML host page;
+               only classic Outlook on Windows uses the JS-only override below. -->
+          <bt:Url id="WebViewRuntime.Url" DefaultValue="https://localhost:3000/commands.html" />
+          <bt:Url id="JSRuntime.Url" DefaultValue="https://localhost:3000/commands.js" />
+        </bt:Urls>
+        <bt:ShortStrings>
+          <bt:String id="Group.Label" DefaultValue="SMOH" />
+          <bt:String id="Taskpane.Button.Label" DefaultValue="Log to CRM" />
+        </bt:ShortStrings>
+        <bt:LongStrings>
+          <bt:String id="Taskpane.Button.Tooltip" DefaultValue="Open SMOH Mail Tracker to log this email to your CRM." />
+        </bt:LongStrings>
+      </Resources>
+
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

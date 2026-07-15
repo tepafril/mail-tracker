@@ -1,0 +1,32 @@
+# Global options: ACME account email for Let's Encrypt certificate notices.
+{
+	email admin@odad.asia
+}
+
+connector.odad.asia {
+	root * /var/www/html/public
+
+	encode zstd gzip
+
+	# PHP -> the app (php-fpm) container on the internal docker network.
+	# Caddy sets HTTPS=on / X-Forwarded-* so Laravel builds https:// URLs.
+	php_fastcgi app:9000
+
+	file_server
+
+	# Don't serve dotfiles (.env, .git, ...) as static content.
+	@dotfiles path /.* /.*/*
+	respond @dotfiles 404
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	log {
+		output stdout
+	}
+}

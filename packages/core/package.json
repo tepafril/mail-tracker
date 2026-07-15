@@ -1,0 +1,28 @@
+{
+  "name": "@smoh/mail-tracker-core",
+  "version": "0.1.0",
+  "description": "Shared contract for SMOH mail tracking: SMOH OData client interface, domain types, and canonical dedup keys. Consumed by the Outlook/Gmail thin clients; mirrored (not imported) by the Laravel backend.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test": "npm run build && node --test",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^20.14.0"
+  }
+}

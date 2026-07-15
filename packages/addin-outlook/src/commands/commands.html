@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>SMOH Mail Tracker — commands</title>
+    <!--
+      HTML host page for event-based activation. The browser/WebView runtimes used by
+      Outlook on the web, new Outlook on Windows, and Outlook on Mac load THIS page
+      (WebViewRuntime.Url) — not the bare .js — so the handler registers on those hosts.
+      Classic Outlook on Windows instead loads commands.js via the JSRuntime override.
+      Office.js must come from the Microsoft CDN; commands.js is injected by webpack.
+    -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  </head>
+  <body></body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SMOH Mail Tracker</title>
+    <!-- Office.js MUST be loaded from the Microsoft CDN (platform requirement). -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+      :root { color-scheme: light dark; font-family: 'Segoe UI', system-ui, sans-serif; }
+      body { margin: 0; padding: 16px; font-size: 14px; }
+      h1 { font-size: 16px; margin: 0 0 12px; }
+      .muted { color: #666; }
+      button {
+        font: inherit; padding: 8px 14px; border: 0; border-radius: 4px;
+        background: #0f6cbd; color: #fff; cursor: pointer;
+      }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .row { margin: 10px 0; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e6f2fb; }
+      #status { min-height: 18px; }
+      ul { padding-left: 18px; }
+      .error { color: #b00020; }
+      .ok { color: #107c10; }
+    </style>
+  </head>
+  <body>
+    <h1>SMOH Mail Tracker</h1>
+    <div id="signin" class="row">
+      <button id="signin-btn">Sign in</button>
+      <span class="muted"> to link this email to your CRM.</span>
+    </div>
+    <div id="app" hidden>
+      <div class="row" id="who"></div>
+      <div class="row" id="contact"></div>
+      <div class="row"><button id="log-btn" disabled>Log this email to CRM</button></div>
+      <div class="row" id="timeline"></div>
+    </div>
+    <div id="status" class="row"></div>
+  </body>
+</html>

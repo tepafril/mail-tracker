@@ -1,0 +1,98 @@
+name: mail-tracker
+
+# One source of truth for configuration: the root .env file. It is injected into the
+# PHP containers (env_file) AND used by compose for ${...} interpolation below.
+
+x-app: &app
+  build:
+    context: ./packages/backend
+    target: app
+  image: mail-tracker-app
+  restart: unless-stopped
+  env_file: .env
+  volumes:
+    - storage:/var/www/html/storage
+  networks: [internal]
+
+services:
+  # PHP-FPM: serves the API/Gmail-card requests proxied from Caddy.
+  app:
+    <<: *app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Caddy: TLS termination for connector.odad.asia + static files + FastCGI to app.
+  web:
+    build:
+      context: ./packages/backend
+      target: web
+    image: mail-tracker-web
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"      # HTTP/3
+    volumes:
+      - caddy_data:/data    # persisted Let's Encrypt certs — do not delete
+      - caddy_config:/config
+    networks: [internal]
+
+  # Laravel Horizon: manages the Redis queue workers (LogEmailActivityJob, sync jobs).
+  horizon:
+    <<: *app
+    command: ["php", "artisan", "horizon"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    stop_grace_period: 60s
+
+  # Scheduler: runs due scheduled tasks (PII scrub / Phase-2 subscription renewals).
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks: [internal]
+
+volumes:
+  storage:
+  db_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

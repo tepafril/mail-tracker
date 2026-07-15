@@ -1,0 +1,19 @@
+{
+  "name": "smoh-mail-tracker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Email-to-CRM tracking for SMOH — multi-tenant SaaS (Outlook + Gmail) on one Laravel backend.",
+  "workspaces": [
+    "packages/core",
+    "packages/addin-outlook",
+    "packages/addin-gmail"
+  ],
+  "scripts": {
+    "build:core": "npm run build --workspace packages/core",
+    "build:outlook": "npm run build --workspace packages/addin-outlook",
+    "test:core": "npm run test --workspace packages/core"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

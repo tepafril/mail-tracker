@@ -1,0 +1,36 @@
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# Laravel (packages/backend)
+packages/backend/vendor/
+packages/backend/node_modules/
+packages/backend/.env
+packages/backend/.env.backup
+packages/backend/.phpunit.result.cache
+packages/backend/storage/*.key
+packages/backend/storage/logs/*.log
+packages/backend/storage/framework/cache/data/*
+packages/backend/storage/framework/sessions/*
+packages/backend/storage/framework/views/*
+packages/backend/bootstrap/cache/*.php
+packages/backend/public/hot
+packages/backend/public/storage
+packages/backend/public/build
+
+# Add-ins
+packages/addin-outlook/dist/
+packages/addin-outlook/.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Secrets / local
+*.pem
+*.local
