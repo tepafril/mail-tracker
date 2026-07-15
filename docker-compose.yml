@@ -24,11 +24,15 @@ services:
       redis:
         condition: service_started
 
-  # Caddy: TLS termination for connector.odad.asia + static files + FastCGI to app.
+  # Caddy: TLS termination for connector.odad.asia + /addin static add-in + FastCGI to app.
   web:
     build:
-      context: ./packages/backend
-      target: web
+      context: .
+      dockerfile: packages/backend/docker/web.Dockerfile
+      args:
+        BACKEND_BASE_URL: ${APP_URL}
+        ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}
+        API_SCOPE: ${API_SCOPE:-}
     image: mail-tracker-web
     restart: unless-stopped
     depends_on: [app]

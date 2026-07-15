@@ -30,6 +30,10 @@ module.exports = async (env, argv) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename: '[name].js',
+      // When hosted under a subpath (e.g. https://host/addin/), set PUBLIC_PATH=/addin/
+      // so HtmlWebpackPlugin emits <script src="/addin/taskpane.js">. Defaults to '/'
+      // for the dev server and root hosting.
+      publicPath: process.env.PUBLIC_PATH || '/',
       clean: true,
     },
     resolve: {

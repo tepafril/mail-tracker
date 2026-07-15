@@ -67,10 +67,3 @@ RUN chmod +x /usr/local/bin/entrypoint
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
-
-############################################
-# 5. Web server (Caddy: static + FastCGI + auto TLS)
-############################################
-FROM caddy:2-alpine AS web
-COPY --from=app /var/www/html/public /var/www/html/public
-COPY docker/Caddyfile /etc/caddy/Caddyfile

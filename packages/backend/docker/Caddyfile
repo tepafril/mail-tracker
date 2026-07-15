@@ -4,25 +4,30 @@
 }
 
 connector.odad.asia {
-	root * /var/www/html/public
-
 	encode zstd gzip
 
-	# PHP -> the app (php-fpm) container on the internal docker network.
-	# Caddy sets HTTPS=on / X-Forwarded-* so Laravel builds https:// URLs.
-	php_fastcgi app:9000
+	# Outlook add-in static files, hosted under /addin/*.
+	# handle_path strips the /addin prefix: /addin/taskpane.html -> /srv/addin/taskpane.html
+	# (matches the add-in's build-time PUBLIC_PATH=/addin/).
+	handle_path /addin/* {
+		root * /srv/addin
+		file_server
+	}
 
-	file_server
+	# Everything else -> Laravel API (php-fpm). Caddy sets HTTPS=on / X-Forwarded-*
+	# so Laravel builds https:// URLs.
+	handle {
+		root * /var/www/html/public
+		php_fastcgi app:9000
+		file_server
+	}
 
-	# Don't serve dotfiles (.env, .git, ...) as static content.
-	@dotfiles path /.* /.*/*
-	respond @dotfiles 404
-
+	# Security headers. NOTE: no X-Frame-Options / frame-ancestors — Outlook renders the
+	# add-in inside a cross-origin webview, so framing must stay allowed.
 	header {
 		-Server
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
