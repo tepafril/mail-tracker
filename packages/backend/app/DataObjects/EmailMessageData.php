@@ -95,7 +95,7 @@ final readonly class EmailMessageData
      *
      * @return array<string, mixed>
      */
-    public function toSmohActivity(?string $regardingId, string $body): array
+    public function toSmohActivity(?string $regardingId, ?string $regardingType, string $body): array
     {
         $payload = [
             'subject' => mb_substr($this->subject, 0, 255),
@@ -106,9 +106,11 @@ final readonly class EmailMessageData
             'to' => implode(',', array_map(static fn (MailAddressData $a) => $a->address, $this->to)),
         ];
 
+        // Link to the matched CRM record (contact/lead/account). No match => no regarding
+        // (the `all` track rule may log unmatched mail).
         if ($regardingId !== null && $regardingId !== '') {
             $payload['regarding_id'] = $regardingId;
-            $payload['regarding_type'] = \App\Support\ODataQuery::EMAIL_REGARDING_TYPE;
+            $payload['regarding_type'] = $regardingType ?? \App\Support\ODataQuery::EMAIL_REGARDING_TYPE;
         }
 
         return $payload;

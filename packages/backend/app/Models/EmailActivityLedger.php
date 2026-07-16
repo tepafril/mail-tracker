@@ -51,6 +51,7 @@ class EmailActivityLedger extends Model
         'direction',
         'source',
         'contact_id',
+        'regarding_type',
         'smoh_activity_id',
         'subject',
         'status',

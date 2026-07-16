@@ -32,6 +32,14 @@ final readonly class SmohConfig
         public array $contactEmailFields = ['email', 'email_business'],
         public ?string $emailActivitySet = null,
         public ?string $contactSet = null,
+        // Lead/account matching (Dynamics-style: resolve recipients to contacts, then
+        // leads, then accounts). Sets are resolved from $metadata when left null.
+        public string $leadType = 'CRM.Lead',
+        public string $accountType = 'CRM.Account',
+        public array $leadEmailFields = ['email'],
+        public array $accountEmailFields = ['primary_email'],
+        public ?string $leadSet = null,
+        public ?string $accountSet = null,
     ) {}
 
     /** SMOH root without a trailing slash. */

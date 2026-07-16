@@ -76,6 +76,18 @@ class SmohClient
         return $this->config->contactSet ?? $this->resolveEntitySet($this->config->contactType);
     }
 
+    /** Resolved lead entity-set name. */
+    public function leadSet(): string
+    {
+        return $this->config->leadSet ?? $this->resolveEntitySet($this->config->leadType);
+    }
+
+    /** Resolved account entity-set name. */
+    public function accountSet(): string
+    {
+        return $this->config->accountSet ?? $this->resolveEntitySet($this->config->accountType);
+    }
+
     /**
      * Resolve the OData entity-set name for a fully-qualified type (e.g. 'CRM.Email')
      * from `{base}/odata/$metadata`, cached per tenant+type. Falls back to matching on
@@ -118,13 +130,44 @@ class SmohClient
     /** Find a contact by email across the configured fields. Returns the GUID or null. */
     public function findContactByEmail(string $email): ?string
     {
+        return $this->matchInSet($this->contactSet(), $email, $this->config->contactEmailFields, 'contact');
+    }
+
+    /**
+     * Resolve an email to a CRM record, trying contact -> lead -> account (Dynamics-style
+     * matching order). Returns the first match with its id and OData type, or null.
+     */
+    public function resolveRecipient(string $email): ?RecipientMatch
+    {
+        if (($id = $this->matchInSet($this->contactSet(), $email, $this->config->contactEmailFields, 'contact')) !== null) {
+            return new RecipientMatch($id, $this->config->contactType);
+        }
+
+        if (($id = $this->matchInSet($this->leadSet(), $email, $this->config->leadEmailFields, 'lead')) !== null) {
+            return new RecipientMatch($id, $this->config->leadType);
+        }
+
+        if (($id = $this->matchInSet($this->accountSet(), $email, $this->config->accountEmailFields, 'account')) !== null) {
+            return new RecipientMatch($id, $this->config->accountType);
+        }
+
+        return null;
+    }
+
+    /**
+     * Match an email against one entity set's email fields; returns the record id or null.
+     *
+     * @param  list<string>  $fields
+     */
+    private function matchInSet(string $set, string $email, array $fields, string $label): ?string
+    {
         $response = $this->request()->get(
-            $this->config->base().'/odata/'.$this->contactSet(),
-            ODataQuery::contactMatchParams($email, $this->config->contactEmailFields),
+            $this->config->base().'/odata/'.$set,
+            ODataQuery::contactMatchParams($email, $fields),
         );
 
         if (! $response->successful()) {
-            $this->fail($response, 'SMOH contact lookup failed');
+            $this->fail($response, "SMOH {$label} lookup failed");
         }
 
         $rows = $response->json('value');

@@ -55,6 +55,14 @@ final class FakeSmohClient extends SmohClient
         return Uuid::uuid5(Uuid::NAMESPACE_URL, 'smoh-contact:'.mb_strtolower(trim($email)))->toString();
     }
 
+    /** The fake resolves every address to its stable contact. */
+    public function resolveRecipient(string $email): ?RecipientMatch
+    {
+        $id = $this->findContactByEmail($email);
+
+        return $id === null ? null : new RecipientMatch($id, 'CRM.Contact');
+    }
+
     /** Store the activity in the cache and return a fresh GUID. */
     public function logEmailActivity(array $payload): string
     {

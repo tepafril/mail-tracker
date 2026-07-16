@@ -98,22 +98,24 @@ class LogEmailActivityJob implements ShouldBeUnique, ShouldQueue
         $client = $factory->for($tenant);
 
         try {
-            $contactId = $counterparty !== null ? $client->findContactByEmail($counterparty) : null;
+            // Match the counterparty to a CRM record: contact -> lead -> account.
+            $match = $counterparty !== null ? $client->resolveRecipient($counterparty) : null;
 
             // Rules other than "all" require a matched CRM record.
-            if ($contactId === null && $rule !== TrackRule::All) {
-                $reason = $counterparty === null ? 'no-counterparty' : 'no-contact-match:'.$counterparty;
+            if ($match === null && $rule !== TrackRule::All) {
+                $reason = $counterparty === null ? 'no-counterparty' : 'no-record-match:'.$counterparty;
                 $this->finish($ledger, LedgerStatus::SkippedNoContact, $reason, $tenant);
 
                 return;
             }
 
             $activityId = $client->logEmailActivity(
-                $this->message->toSmohActivity($contactId, $this->buildBody()),
+                $this->message->toSmohActivity($match?->id, $match?->type, $this->buildBody()),
             );
 
             $ledger->fill([
-                'contact_id' => $contactId,
+                'contact_id' => $match?->id,
+                'regarding_type' => $match?->type,
                 'smoh_activity_id' => $activityId,
                 'status' => LedgerStatus::Logged,
                 'logged_at' => now(),
