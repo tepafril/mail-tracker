@@ -11,7 +11,7 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
 
-  <Id>REPLACE_WITH_ENTRA_APP_ID</Id>
+  <Id>d4277788-75b7-474d-989c-0000ca931242</Id>
   <Version>0.1.0</Version>
   <ProviderName>SMOH</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
