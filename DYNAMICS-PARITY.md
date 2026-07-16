@@ -33,7 +33,7 @@ Two tracking modes, plus a set of behaviors:
 | Manual track from a pane | Add-in **Log to CRM** button | ✅ Have |
 | Server-side auto-track (no user) | Graph subscription → `ParseGraphNotificationJob` | ✅ Have |
 | Email → CRM activity record | `EmailActivityLedger` → SMOH `CRM.Email` | ✅ Have |
-| Match sender/recipient to CRM | `findContactByEmail` (**contacts only**) | ⚠️ Partial |
+| Match sender/recipient to CRM | `resolveRecipient` (contact → lead → account) | ✅ **Done (Phase C)** |
 | Auto-track only known contacts | `known_contacts` rule (default) | ✅ Have |
 | Configurable tracking rules | `TrackRule`: all / known_contacts / none (per mailbox) | ✅ **Done (Phase A)** |
 | Set Regarding to a parent record | `regarding` is always the **contact** | ❌ Gap |
@@ -79,8 +79,10 @@ not just the contact.
 - Add-in **Set Regarding** picker in the task pane
   ([packages/addin-outlook/src/taskpane](packages/addin-outlook/src/taskpane)).
 
-### Phase C — Lead + account matching
-Dynamics matches leads/contacts/accounts, not just contacts.
+### Phase C — Lead + account matching ✅ DONE (2026-07-16)
+Shipped: `SmohClient::resolveRecipient()` (contact → lead → account, returns
+`RecipientMatch{id,type}`), `SmohConfig` lead/account settings, `regarding_type` on the
+ledger + activity payload. Verified live against the mock. (Below: original notes.)
 - Extend `SmohClient::findContactByEmail` → `resolveRecipient()` that tries **contact →
   lead → account** and returns `{id, type}`.
 - Feed the resolved type into the regarding from Phase B.
