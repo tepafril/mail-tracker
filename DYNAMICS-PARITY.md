@@ -36,7 +36,7 @@ Two tracking modes, plus a set of behaviors:
 | Match sender/recipient to CRM | `resolveRecipient` (contact → lead → account) | ✅ **Done (Phase C)** |
 | Auto-track only known contacts | `known_contacts` rule (default) | ✅ Have |
 | Configurable tracking rules | `TrackRule`: all / known_contacts / none (per mailbox) | ✅ **Done (Phase A)** |
-| Set Regarding to a parent record | `regarding` is always the **contact** | ❌ Gap |
+| Set Regarding to a parent record | Backend done (search + set/change regarding); add-in picker pending | ⚠️ **Backend done (Phase B)** |
 | Dedup by Message-ID | Message-ID + synthetic key | ✅ Have |
 | Conversation correlation / "responses to CRM email" | partial subject/synthetic keying | ⚠️ Partial |
 | Attachments on the activity | not captured | ❌ Gap |
@@ -66,9 +66,12 @@ deferred to Phase D. (Below: original notes.)
 - Set the rule via `mail-tracker:track-mailbox … --rule=known_contacts`.
 - Files: new `App\Enums\TrackRule`, migration on `users`, `TrackMailboxCommand`, `LogEmailActivityJob`.
 
-### Phase B — Set Regarding (link to parent records)
-The biggest functional gap. Let an email link to an **Account / Opportunity / Case / Lead**,
-not just the contact.
+### Phase B — Set Regarding (link to parent records) — ⚙️ BACKEND DONE (2026-07-16)
+Shipped backend: `SmohClient::searchRecords()` + `setActivityRegarding()`, `GET /api/v1/records?q=`
+(`RecordSearchController`), `POST /api/v1/activities/{ledger}/regarding` (`SetRegardingController`),
+mock SMOH contains-search + PATCH. Verified live. **Remaining: the add-in Set Regarding picker
+UI** (task pane — search a record, link the email), which needs a webpack rebuild + sideload.
+(Below: original notes.)
 - Extend the SMOH contract to fetch those record types + accept an arbitrary regarding
   target: [packages/core/src/smoh/contract.ts](packages/core/src/smoh/contract.ts),
   [odata.ts](packages/core/src/smoh/odata.ts).
