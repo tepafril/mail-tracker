@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\ContactMatchController;
 use App\Http\Controllers\Api\V1\DevLoginController;
 use App\Http\Controllers\Api\V1\EmailActivityController;
 use App\Http\Controllers\Api\V1\TimelineController;
+use App\Http\Controllers\Dev\MockSmohController;
 use App\Http\Controllers\Gmail\GmailAddonController;
 use App\Http\Controllers\Webhooks\GmailPushController;
 use App\Http\Controllers\Webhooks\GraphNotificationController;
@@ -60,4 +61,16 @@ Route::prefix('webhooks')->group(function () {
 Route::prefix('gmail')->group(function () {
     Route::post('addon/contextual', [GmailAddonController::class, 'contextual'])->name('gmail.contextual');
     Route::post('actions/log', [GmailAddonController::class, 'logAction'])->name('gmail.actions.log');
+});
+
+/*
+| DEV/DEMO ONLY: in-backend mock SMOH CRM (OData v4 + /auth/login) so the CRM-depth
+| features can be built against a real SMOH-like service before a real one exists. The
+| controller self-gates to dev (MAIL_TRACKER_DEV_AUTH / local) and 404s in production.
+| Point a tenant's smoh_base_url at {APP_URL}/api/mock-smoh. See DYNAMICS-PARITY.md.
+*/
+Route::prefix('mock-smoh')->group(function () {
+    Route::post('auth/login', [MockSmohController::class, 'login']);
+    Route::get('odata/{set}', [MockSmohController::class, 'query']);
+    Route::post('odata/{set}', [MockSmohController::class, 'create']);
 });
