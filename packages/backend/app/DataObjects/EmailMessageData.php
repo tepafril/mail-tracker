@@ -84,8 +84,9 @@ final readonly class EmailMessageData
     }
 
     /**
-     * The canonical CRM.Email activity payload for SMOH (MASTER-PLAN §7.2). The scalar
-     * `regarding_id` + `regarding_type` pair links the activity to the contact.
+     * The canonical CRM.Email activity payload for SMOH (MASTER-PLAN §7.2). When a CRM
+     * record was matched, the scalar `regarding_id` + `regarding_type` pair links the
+     * activity to it; with no match (the `all` track rule) the regarding is omitted.
      *
      * NOTE: the non-`regarding_*` property names below (subject/body/direction/sent_at/
      * from/to) are the best-guess mapping; confirm them against SMOH's CRM.Email
@@ -94,11 +95,9 @@ final readonly class EmailMessageData
      *
      * @return array<string, mixed>
      */
-    public function toSmohActivity(string $contactId, string $body): array
+    public function toSmohActivity(?string $regardingId, string $body): array
     {
-        return [
-            'regarding_id' => $contactId,
-            'regarding_type' => \App\Support\ODataQuery::EMAIL_REGARDING_TYPE,
+        $payload = [
             'subject' => mb_substr($this->subject, 0, 255),
             'body' => $body,
             'direction' => $this->direction->value,
@@ -106,6 +105,13 @@ final readonly class EmailMessageData
             'from' => $this->from->address,
             'to' => implode(',', array_map(static fn (MailAddressData $a) => $a->address, $this->to)),
         ];
+
+        if ($regardingId !== null && $regardingId !== '') {
+            $payload['regarding_id'] = $regardingId;
+            $payload['regarding_type'] = \App\Support\ODataQuery::EMAIL_REGARDING_TYPE;
+        }
+
+        return $payload;
     }
 
     /**

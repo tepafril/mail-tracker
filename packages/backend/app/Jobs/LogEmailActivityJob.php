@@ -6,9 +6,11 @@ namespace App\Jobs;
 
 use App\DataObjects\EmailMessageData;
 use App\Enums\LedgerStatus;
+use App\Enums\TrackRule;
 use App\Models\EmailActivityLedger;
 use App\Models\EmailTrackAudit;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Email\BodySanitizer;
 use App\Services\Smoh\SmohClientFactory;
 use App\Services\Smoh\SmohException;
@@ -84,20 +86,24 @@ class LogEmailActivityJob implements ShouldBeUnique, ShouldQueue
 
         $ledger->increment('attempts');
 
-        $counterparty = $this->message->counterpartyEmail();
-        if ($counterparty === null) {
-            $this->finish($ledger, LedgerStatus::SkippedNoContact, 'no-counterparty', $tenant);
+        // Per-mailbox auto-track rule (Dynamics-style). Default preserves prior behavior.
+        $rule = User::find($ledger->user_id)?->track_rule ?? TrackRule::default();
+        if ($rule === TrackRule::None) {
+            $this->finish($ledger, LedgerStatus::SkippedByRule, 'track-rule:none', $tenant);
 
             return;
         }
 
+        $counterparty = $this->message->counterpartyEmail();
         $client = $factory->for($tenant);
 
         try {
-            $contactId = $client->findContactByEmail($counterparty);
+            $contactId = $counterparty !== null ? $client->findContactByEmail($counterparty) : null;
 
-            if ($contactId === null) {
-                $this->finish($ledger, LedgerStatus::SkippedNoContact, 'no-contact-match:'.$counterparty, $tenant);
+            // Rules other than "all" require a matched CRM record.
+            if ($contactId === null && $rule !== TrackRule::All) {
+                $reason = $counterparty === null ? 'no-counterparty' : 'no-contact-match:'.$counterparty;
+                $this->finish($ledger, LedgerStatus::SkippedNoContact, $reason, $tenant);
 
                 return;
             }

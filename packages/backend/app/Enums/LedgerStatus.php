@@ -12,5 +12,6 @@ enum LedgerStatus: string
     case Logged = 'logged';
     case SkippedNoContact = 'skipped_no_contact';
     case SkippedBlacklisted = 'skipped_blacklisted';
+    case SkippedByRule = 'skipped_by_rule';
     case Failed = 'failed';
 }

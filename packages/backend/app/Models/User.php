@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\MailProvider;
+use App\Enums\TrackRule;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -41,6 +42,7 @@ class User extends Authenticatable
         'email',
         'name',
         'last_seen_at',
+        'track_rule',
     ];
 
     /**
@@ -50,6 +52,7 @@ class User extends Authenticatable
     {
         return [
             'provider' => MailProvider::class,
+            'track_rule' => TrackRule::class,
             'last_seen_at' => 'datetime',
         ];
     }

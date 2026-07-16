@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\MailProvider;
+use App\Enums\TrackRule;
 use App\Models\Tenant;
 use App\Models\TenantIdentityMapping;
 use App\Models\User;
@@ -27,6 +28,7 @@ class TrackMailboxCommand extends Command
     protected $signature = 'mail-tracker:track-mailbox
         {tenant : Tenant id the mailboxes belong to (must be onboarded for outlook)}
         {emails* : One or more mailbox email addresses to track}
+        {--rule= : Auto-track rule: all | known_contacts | none (default known_contacts)}
         {--subscribe : Also create the Graph subscription for each mailbox now}';
 
     protected $description = 'Enroll Outlook mailboxes for zero-touch tracking (admin-managed list).';
@@ -34,6 +36,14 @@ class TrackMailboxCommand extends Command
     public function handle(GraphSubscriptionManager $subscriptions): int
     {
         $tenantId = (string) $this->argument('tenant');
+
+        $ruleOption = $this->option('rule');
+        $rule = $ruleOption !== null ? TrackRule::tryFrom((string) $ruleOption) : null;
+        if ($ruleOption !== null && $rule === null) {
+            $this->error("Invalid --rule \"{$ruleOption}\". Use: all | known_contacts | none.");
+
+            return self::INVALID;
+        }
 
         $tenant = Tenant::query()->find($tenantId);
         if (! $tenant instanceof Tenant) {
@@ -66,19 +76,28 @@ class TrackMailboxCommand extends Command
 
                 $user = User::query()->firstOrCreate(
                     ['provider' => MailProvider::Outlook->value, 'email' => $email],
-                    ['tenant_id' => $tenant->id, 'entra_tid' => $entraTid],
+                    ['tenant_id' => $tenant->id, 'entra_tid' => $entraTid, 'track_rule' => ($rule ?? TrackRule::default())->value],
                 );
 
-                // Keep entra_tid current even if the row pre-existed (e.g. org re-onboarded).
+                // Keep entra_tid current even if the row pre-existed (e.g. org re-onboarded);
+                // update the rule too when one was explicitly passed.
+                $updates = [];
                 if ($user->entra_tid !== $entraTid) {
-                    $user->forceFill(['entra_tid' => $entraTid])->save();
+                    $updates['entra_tid'] = $entraTid;
+                }
+                if ($rule !== null && $user->track_rule !== $rule) {
+                    $updates['track_rule'] = $rule->value;
+                }
+                if ($updates !== []) {
+                    $user->forceFill($updates)->save();
                 }
 
                 $this->info(sprintf(
-                    '%s: %s (user #%d)',
+                    '%s: %s (user #%d, rule=%s)',
                     $email,
                     $user->wasRecentlyCreated ? 'enrolled' : 'already enrolled',
                     $user->id,
+                    $user->track_rule->value,
                 ));
 
                 if ($this->option('subscribe')) {
