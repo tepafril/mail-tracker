@@ -66,6 +66,7 @@ class AuthAndApiFlowTest extends TestCase
         $edmx = '<?xml version="1.0"?><edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">'
             .'<edmx:DataServices><Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="CRM">'
             .'<EntityContainer Name="C"><EntitySet Name="Contacts" EntityType="CRM.Contact"/>'
+            .'<EntitySet Name="Leads" EntityType="CRM.Lead"/><EntitySet Name="Accounts" EntityType="CRM.Account"/>'
             .'<EntitySet Name="Emails" EntityType="CRM.Email"/></EntityContainer></Schema></edmx:DataServices></edmx:Edmx>';
 
         Http::fake(function (Request $request) use ($jwt, $edmx) {
@@ -74,7 +75,10 @@ class AuthAndApiFlowTest extends TestCase
             return match (true) {
                 str_contains($url, '/auth/login') => Http::response(['access_token' => $jwt], 200),
                 str_contains($url, '/odata/$metadata') => Http::response($edmx, 200),
-                str_contains($url, '/odata/Contacts') => Http::response(['value' => [['id' => '11111111-1111-1111-1111-111111111111']]], 200),
+                str_contains($url, '/odata/Contacts') => Http::response(['value' => [['id' => '11111111-1111-1111-1111-111111111111', 'first_name' => 'Jane', 'email' => 'jane@client.com']]], 200),
+                str_contains($url, '/odata/Leads') => Http::response(['value' => []], 200),
+                str_contains($url, '/odata/Accounts') => Http::response(['value' => []], 200),
+                str_contains($url, '/odata/Emails(') && $request->method() === 'PATCH' => Http::response(null, 204),
                 str_contains($url, '/odata/Emails') && $request->method() === 'POST' => Http::response(null, 201, [
                     'OData-EntityId' => self::BASE.'/odata/Emails(activity-guid-9)',
                 ]),
@@ -242,5 +246,36 @@ class AuthAndApiFlowTest extends TestCase
 
         $this->getJson('/api/v1/contacts/not-a-guid/timeline', ['Authorization' => 'Bearer '.$token])
             ->assertStatus(422);
+    }
+
+    public function test_record_search_returns_candidates(): void
+    {
+        $token = $this->postJson('/api/v1/auth/exchange', ['provider' => 'outlook', 'token' => $this->entraToken()])->json('token');
+
+        $this->getJson('/api/v1/records?q=jane', ['Authorization' => 'Bearer '.$token])
+            ->assertOk()
+            ->assertJsonStructure(['records' => [['id', 'type', 'label']]]);
+    }
+
+    public function test_set_regarding_updates_activity_and_ledger(): void
+    {
+        $token = $this->postJson('/api/v1/auth/exchange', ['provider' => 'outlook', 'token' => $this->entraToken()])->json('token');
+        $auth = ['Authorization' => 'Bearer '.$token];
+
+        // Log an email so there is an activity to re-point.
+        $this->postJson('/api/v1/activities/email', $this->emailPayload(), $auth)->assertStatus(202);
+        $ledger = EmailActivityLedger::withoutGlobalScopes()->firstOrFail();
+
+        $this->postJson("/api/v1/activities/{$ledger->id}/regarding", [
+            'regarding_id' => 'acct-123',
+            'regarding_type' => 'CRM.Account',
+        ], $auth)->assertOk()->assertJson(['regardingId' => 'acct-123', 'regardingType' => 'CRM.Account']);
+
+        $ledger->refresh();
+        $this->assertSame('acct-123', $ledger->contact_id);
+        $this->assertSame('CRM.Account', $ledger->regarding_type);
+
+        Http::assertSent(fn (Request $r) => $r->method() === 'PATCH'
+            && str_contains($r->url(), '/odata/Emails(activity-guid-9)'));
     }
 }

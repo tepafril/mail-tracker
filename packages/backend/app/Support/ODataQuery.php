@@ -63,6 +63,38 @@ final class ODataQuery
         ];
     }
 
+    /**
+     * `$filter` matching records whose given fields contain the query (case-insensitive) —
+     * used by the Set Regarding record search.
+     *
+     * @param  list<string>  $fields
+     */
+    public static function searchFilter(string $query, array $fields): string
+    {
+        if ($fields === []) {
+            $fields = self::DEFAULT_CONTACT_EMAIL_FIELDS;
+        }
+
+        $value = self::escapeString(mb_strtolower(trim($query)));
+        $clauses = array_map(static fn (string $f): string => "contains(tolower({$f}), '{$value}')", $fields);
+
+        return '('.implode(' or ', $clauses).')';
+    }
+
+    /**
+     * OData query params for a record search.
+     *
+     * @param  list<string>  $fields
+     * @return array<string, string|int>
+     */
+    public static function searchParams(string $query, array $fields, int $top = 10): array
+    {
+        return [
+            '$filter' => self::searchFilter($query, $fields),
+            '$top' => $top,
+        ];
+    }
+
     /** `$filter` for a contact's email timeline. */
     public static function timelineFilter(string $contactId): string
     {

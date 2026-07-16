@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\V1\AuthExchangeController;
 use App\Http\Controllers\Api\V1\ContactMatchController;
 use App\Http\Controllers\Api\V1\DevLoginController;
 use App\Http\Controllers\Api\V1\EmailActivityController;
+use App\Http\Controllers\Api\V1\RecordSearchController;
+use App\Http\Controllers\Api\V1\SetRegardingController;
 use App\Http\Controllers\Api\V1\TimelineController;
 use App\Http\Controllers\Dev\MockSmohController;
 use App\Http\Controllers\Gmail\GmailAddonController;
@@ -40,6 +42,13 @@ Route::prefix('v1')->group(function () {
 
         Route::get('contacts/{contact}/timeline', TimelineController::class)
             ->middleware('ability:contacts:read');
+
+        // Set Regarding (Phase B): search CRM records, then link a logged email to one.
+        Route::get('records', RecordSearchController::class)
+            ->middleware('ability:contacts:read');
+
+        Route::post('activities/{ledger}/regarding', SetRegardingController::class)
+            ->middleware('ability:activities:write');
     });
 });
 
@@ -73,4 +82,5 @@ Route::prefix('mock-smoh')->group(function () {
     Route::post('auth/login', [MockSmohController::class, 'login']);
     Route::get('odata/{set}', [MockSmohController::class, 'query']);
     Route::post('odata/{set}', [MockSmohController::class, 'create']);
+    Route::patch('odata/{ref}', [MockSmohController::class, 'update']); // ref = Emails(<id>)
 });

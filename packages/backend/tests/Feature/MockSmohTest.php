@@ -86,6 +86,34 @@ class MockSmohTest extends TestCase
         $this->assertSame(1, MockEmail::count());
     }
 
+    public function test_search_by_contains(): void
+    {
+        MockContact::create(['first_name' => 'Jane', 'last_name' => 'Doe', 'email' => 'jane@x.com']);
+        MockContact::create(['first_name' => 'Bob', 'email' => 'bob@y.com']);
+
+        $url = '/api/mock-smoh/odata/Contacts?'.http_build_query([
+            '$filter' => "(contains(tolower(first_name), 'jane') or contains(tolower(email), 'jane'))",
+            '$top' => 10,
+        ]);
+
+        $this->withToken('mock-x')->getJson($url)
+            ->assertOk()
+            ->assertJsonCount(1, 'value')
+            ->assertJsonPath('value.0.first_name', 'Jane');
+    }
+
+    public function test_patch_sets_regarding(): void
+    {
+        $email = MockEmail::create(['subject' => 'Hi', 'regarding_id' => 'old']);
+
+        $this->withToken('mock-x')
+            ->patchJson("/api/mock-smoh/odata/Emails({$email->id})", ['regarding_id' => 'new-1', 'regarding_type' => 'CRM.Account'])
+            ->assertNoContent();
+
+        $this->assertSame('new-1', $email->fresh()->regarding_id);
+        $this->assertSame('CRM.Account', $email->fresh()->regarding_type);
+    }
+
     public function test_gated_off_when_not_dev(): void
     {
         config()->set('mail_tracker.dev_auth', false); // and env is 'testing', not 'local'

@@ -63,6 +63,28 @@ final class FakeSmohClient extends SmohClient
         return $id === null ? null : new RecipientMatch($id, 'CRM.Contact');
     }
 
+    /** Deterministic fake: one contact candidate derived from the query. */
+    public function searchRecords(string $query, int $perType = 5): array
+    {
+        $id = $this->findContactByEmail($query);
+
+        return $id === null ? [] : [['id' => $id, 'type' => 'CRM.Contact', 'label' => "Contact for {$query}"]];
+    }
+
+    /** Update the stored fake activity's regarding. */
+    public function setActivityRegarding(string $activityId, string $regardingId, string $regardingType): void
+    {
+        $key = $this->cacheKey();
+        $activities = Cache::get($key, []);
+        foreach ($activities as $i => $activity) {
+            if (($activity['id'] ?? null) === $activityId) {
+                $activities[$i]['regarding_id'] = $regardingId;
+                $activities[$i]['regarding_type'] = $regardingType;
+            }
+        }
+        Cache::put($key, $activities, now()->addDays(7));
+    }
+
     /** Store the activity in the cache and return a fresh GUID. */
     public function logEmailActivity(array $payload): string
     {

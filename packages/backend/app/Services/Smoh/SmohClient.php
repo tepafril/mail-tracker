@@ -182,6 +182,46 @@ class SmohClient
     }
 
     /**
+     * Search CRM records (contacts, leads, accounts) whose name or email contains the
+     * query. Returns candidates for the add-in's "Set Regarding" picker.
+     *
+     * @return list<array{id: string, type: string, label: string}>
+     */
+    public function searchRecords(string $query, int $perType = 5): array
+    {
+        $sets = [
+            [$this->contactSet(), $this->config->contactType, ['first_name', 'last_name', 'email', 'email_business']],
+            [$this->leadSet(), $this->config->leadType, ['name', 'email']],
+            [$this->accountSet(), $this->config->accountType, ['name', 'primary_email', 'domain']],
+        ];
+
+        $results = [];
+        foreach ($sets as [$set, $type, $fields]) {
+            foreach ($this->searchInSet($set, $fields, $query, $perType) as $row) {
+                $id = $row['id'] ?? null;
+                if (is_scalar($id) && (string) $id !== '') {
+                    $results[] = ['id' => (string) $id, 'type' => $type, 'label' => $this->labelFor($row)];
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /** Re-point (or set) an activity's regarding to a CRM record (Set Regarding). */
+    public function setActivityRegarding(string $activityId, string $regardingId, string $regardingType): void
+    {
+        $response = $this->request()->patch(
+            $this->config->base().'/odata/'.$this->emailActivitySet().'('.$activityId.')',
+            ['regarding_id' => $regardingId, 'regarding_type' => $regardingType],
+        );
+
+        if (! $response->successful()) {
+            $this->fail($response, 'SMOH set-regarding failed');
+        }
+    }
+
+    /**
      * Create a CRM.Email activity and return the new record id, parsed from the
      * `OData-EntityId` response header (falling back to a body `id`).
      *
@@ -227,6 +267,55 @@ class SmohClient
         $rows = $response->json('value');
 
         return is_array($rows) ? array_values($rows) : [];
+    }
+
+    /**
+     * Run a `contains` search over one entity set's fields; returns the raw rows.
+     *
+     * @param  list<string>  $fields
+     * @return list<array<string, mixed>>
+     */
+    private function searchInSet(string $set, array $fields, string $query, int $top): array
+    {
+        $response = $this->request()->get(
+            $this->config->base().'/odata/'.$set,
+            ODataQuery::searchParams($query, $fields, $top),
+        );
+
+        if (! $response->successful()) {
+            $this->fail($response, "SMOH {$set} search failed");
+        }
+
+        $rows = $response->json('value');
+
+        return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
+    }
+
+    /**
+     * Build a human-readable label for a record from whatever name/email fields it has.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function labelFor(array $row): string
+    {
+        $name = trim(implode(' ', array_filter(
+            [$row['name'] ?? null, $row['first_name'] ?? null, $row['last_name'] ?? null],
+            static fn ($v) => is_string($v) && $v !== '',
+        )));
+
+        $email = '';
+        foreach (['email', 'primary_email', 'domain'] as $key) {
+            if (isset($row[$key]) && is_string($row[$key]) && $row[$key] !== '') {
+                $email = $row[$key];
+                break;
+            }
+        }
+
+        if ($name === '') {
+            $name = $email !== '' ? $email : 'Record';
+        }
+
+        return $email !== '' && $email !== $name ? "{$name} <{$email}>" : $name;
     }
 
     // ---- Internals --------------------------------------------------------------

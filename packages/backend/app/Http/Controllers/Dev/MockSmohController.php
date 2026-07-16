@@ -58,11 +58,40 @@ class MockSmohController extends Controller
         $query = $this->rawQuery($request);
         $top = $this->intParam($query, 'top', 50);
 
-        $rows = $set === 'Emails'
-            ? $this->queryEmails($query, $top)
-            : $this->queryByEmail($this->modelFor($set), $set, $query, $top);
+        if (str_contains($query, 'contains(')) {
+            $rows = $this->searchRows($set, $query, $top);       // Set Regarding search
+        } elseif ($set === 'Emails') {
+            $rows = $this->queryEmails($query, $top);            // timeline
+        } else {
+            $rows = $this->queryByEmail($this->modelFor($set), $set, $query, $top); // exact email match
+        }
 
         return response()->json(['value' => $rows]);
+    }
+
+    /** PATCH /odata/{ref} where ref is `Emails(<id>)` — re-point an activity's regarding. */
+    public function update(Request $request, string $ref): Response
+    {
+        $this->ensureDev();
+        $this->ensureAuthorized($request);
+
+        if (preg_match('/^Emails\((.+)\)$/', $ref, $m) !== 1) {
+            abort(404, "Unsupported update target {$ref}.");
+        }
+
+        $email = MockEmail::query()->find($m[1]);
+        if ($email === null) {
+            abort(404, 'Activity not found.');
+        }
+
+        $payload = $request->json()->all();
+        $email->fill(array_filter([
+            'regarding_id' => $payload['regarding_id'] ?? null,
+            'regarding_type' => $payload['regarding_type'] ?? null,
+            'subject' => $payload['subject'] ?? null,
+        ], static fn ($v) => $v !== null))->save();
+
+        return response()->noContent();
     }
 
     /** POST /odata/{set} — create a record (only Emails/activities are used today). */
@@ -156,6 +185,40 @@ class MockSmohController extends Controller
         }
 
         return $builder->limit($top)->get()->map(fn (Model $r) => $r->toArray())->values()->all();
+    }
+
+    /**
+     * `contains` search over a set's name/email columns (Set Regarding picker).
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function searchRows(string $set, string $query, int $top): array
+    {
+        if (preg_match("/contains\([^,]*,\s*'([^']+)'/", $query, $m) !== 1) {
+            return [];
+        }
+        $term = mb_strtolower($m[1]);
+        $model = $this->modelFor($set);
+        $columns = $this->searchColumns($set);
+
+        $builder = $model::query()->where(function ($q) use ($columns, $term) {
+            foreach ($columns as $col) {
+                $q->orWhereRaw('lower('.$col.') like ?', ['%'.$term.'%']);
+            }
+        });
+
+        return $builder->limit($top)->get()->map(fn (Model $r) => $r->toArray())->values()->all();
+    }
+
+    /** @return list<string> */
+    private function searchColumns(string $set): array
+    {
+        return match ($set) {
+            'Contacts' => ['first_name', 'last_name', 'email', 'email_business'],
+            'Leads' => ['name', 'email'],
+            'Accounts' => ['name', 'domain', 'primary_email'],
+            default => ['email'],
+        };
     }
 
     /**
