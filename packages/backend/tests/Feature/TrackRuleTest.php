@@ -39,7 +39,7 @@ class TrackRuleTest extends TestCase
     }
 
     /** Ingest a message for the user and return the resulting ledger row (job runs sync in tests). */
-    private function ingest(User $user, array $overrides = []): EmailActivityLedger
+    private function ingest(User $user, array $overrides = [], string $source = 'sync'): EmailActivityLedger
     {
         $message = EmailMessageData::fromArray(array_merge([
             'internetMessageId' => '<'.uniqid().'@test>',
@@ -53,7 +53,7 @@ class TrackRuleTest extends TestCase
 
         tenancy()->initialize(Tenant::findOrFail($user->tenant_id));
         try {
-            app(EmailIngestionService::class)->ingest($user, $message, source: 'sync');
+            app(EmailIngestionService::class)->ingest($user, $message, source: $source);
         } finally {
             tenancy()->end();
         }
@@ -90,6 +90,14 @@ class TrackRuleTest extends TestCase
 
         $this->assertSame(LedgerStatus::Logged, $ledger->status);
         $this->assertNull($ledger->contact_id);
+    }
+
+    public function test_manual_client_log_ignores_the_rule(): void
+    {
+        // Even a 'none' mailbox logs a manual "Log to CRM" (source=client), with no match.
+        $ledger = $this->ingest($this->userWithRule(TrackRule::None), ['to' => []], 'client');
+
+        $this->assertSame(LedgerStatus::Logged, $ledger->status);
     }
 
     public function test_enrollment_defaults_to_known_contacts(): void

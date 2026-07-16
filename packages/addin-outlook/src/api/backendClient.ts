@@ -92,6 +92,36 @@ export async function logEmail(sanctumToken: string, message: EmailMessage): Pro
   return json<LogResult>(response);
 }
 
+export interface RecordCandidate {
+  id: string;
+  type: string; // e.g. 'CRM.Contact' | 'CRM.Lead' | 'CRM.Account'
+  label: string;
+}
+
+/** Search CRM records (contacts/leads/accounts) to pick a "Set Regarding" target. */
+export async function searchRecords(sanctumToken: string, query: string): Promise<RecordCandidate[]> {
+  const response = await fetch(`${API_BASE}/records?q=${encodeURIComponent(query)}`, {
+    headers: authHeaders(sanctumToken),
+  });
+  const result = await json<{ records: RecordCandidate[] }>(response);
+  return result.records;
+}
+
+/** Link a logged email (ledger row) to a chosen CRM record. */
+export async function setRegarding(
+  sanctumToken: string,
+  ledgerId: number,
+  regardingId: string,
+  regardingType: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/activities/${ledgerId}/regarding`, {
+    method: 'POST',
+    headers: authHeaders(sanctumToken),
+    body: JSON.stringify({ regarding_id: regardingId, regarding_type: regardingType }),
+  });
+  await json<{ id: number }>(response);
+}
+
 /** Fetch a contact's logged-email timeline. */
 export async function timeline(
   sanctumToken: string,

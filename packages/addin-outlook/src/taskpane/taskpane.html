@@ -22,6 +22,17 @@
       ul { padding-left: 18px; }
       .error { color: #b00020; }
       .ok { color: #107c10; }
+      input[type='text'] {
+        font: inherit; padding: 6px 8px; border: 1px solid #b3b3b3;
+        border-radius: 4px; width: 58%;
+      }
+      #regarding-results { list-style: none; padding-left: 0; margin: 8px 0 0; }
+      #regarding-results li { margin: 4px 0; }
+      button.link {
+        background: none; color: #0f6cbd; padding: 4px 0; border: 0;
+        text-align: left; text-decoration: underline; cursor: pointer;
+      }
+      hr { border: 0; border-top: 1px solid #e0e0e0; margin: 14px 0; }
     </style>
   </head>
   <body>
@@ -35,6 +46,17 @@
       <div class="row" id="contact"></div>
       <div class="row"><button id="log-btn" disabled>Log this email to CRM</button></div>
       <div class="row" id="timeline"></div>
+
+      <div id="regarding" hidden>
+        <hr />
+        <div class="row muted">Set Regarding — link this email to a CRM record:</div>
+        <div class="row">
+          <input id="regarding-q" type="text" placeholder="Search contacts, leads, accounts…" />
+          <button id="regarding-search-btn">Search</button>
+        </div>
+        <ul id="regarding-results"></ul>
+        <div id="regarding-status" class="row"></div>
+      </div>
     </div>
     <div id="status" class="row"></div>
   </body>

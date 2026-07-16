@@ -86,13 +86,19 @@ class LogEmailActivityJob implements ShouldBeUnique, ShouldQueue
 
         $ledger->increment('attempts');
 
-        // Per-mailbox auto-track rule (Dynamics-style). Default preserves prior behavior.
+        // The per-mailbox track rule governs AUTO (sync) tracking only. A manual
+        // "Log to CRM" (source=client) always logs, matched or not — like Dynamics' Track.
+        $isSync = $ledger->source === 'sync';
         $rule = User::find($ledger->user_id)?->track_rule ?? TrackRule::default();
-        if ($rule === TrackRule::None) {
+
+        if ($isSync && $rule === TrackRule::None) {
             $this->finish($ledger, LedgerStatus::SkippedByRule, 'track-rule:none', $tenant);
 
             return;
         }
+
+        // Auto-tracking (except the "all" rule) only logs mail matched to a CRM record.
+        $requireMatch = $isSync && $rule !== TrackRule::All;
 
         $counterparty = $this->message->counterpartyEmail();
         $client = $factory->for($tenant);
@@ -101,8 +107,7 @@ class LogEmailActivityJob implements ShouldBeUnique, ShouldQueue
             // Match the counterparty to a CRM record: contact -> lead -> account.
             $match = $counterparty !== null ? $client->resolveRecipient($counterparty) : null;
 
-            // Rules other than "all" require a matched CRM record.
-            if ($match === null && $rule !== TrackRule::All) {
+            if ($match === null && $requireMatch) {
                 $reason = $counterparty === null ? 'no-counterparty' : 'no-record-match:'.$counterparty;
                 $this->finish($ledger, LedgerStatus::SkippedNoContact, $reason, $tenant);
 

@@ -6,13 +6,23 @@
  */
 import type { EmailMessage } from '@smoh/mail-tracker-core';
 
-import { authenticate, matchContact, logEmail, timeline, type ExchangeResult } from '../api/backendClient';
+import {
+  authenticate,
+  matchContact,
+  logEmail,
+  timeline,
+  searchRecords,
+  setRegarding,
+  type ExchangeResult,
+  type RecordCandidate,
+} from '../api/backendClient';
 import { isNaaSupported } from '../auth/naa';
 import { readCurrentMessage, ownEmail } from '../office/message';
 
 let session: ExchangeResult | undefined;
 let currentMessage: EmailMessage | undefined;
 let matchedContactId: string | null = null;
+let loggedLedgerId: number | undefined;
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -97,10 +107,65 @@ async function onLog(): Promise<void> {
     setStatus('Logging…');
     const result = await logEmail(session.token, currentMessage);
     setStatus(result.deduped ? 'Already logged.' : 'Logged to CRM.', 'ok');
+
+    // The email is now a CRM activity — reveal Set Regarding so it can be linked to a record.
+    loggedLedgerId = result.ledgerId;
+    $('regarding').hidden = false;
+
     if (matchedContactId) await renderTimeline(matchedContactId);
   } catch (e) {
     setStatus(`Logging failed: ${(e as Error).message}`, 'error');
     ($('log-btn') as HTMLButtonElement).disabled = false;
+  }
+}
+
+function setRegardingStatus(text: string, cls: '' | 'error' | 'ok' = ''): void {
+  const el = $('regarding-status');
+  el.textContent = text;
+  el.className = `row ${cls}`.trim();
+}
+
+async function onRegardingSearch(): Promise<void> {
+  if (!session) return;
+  const query = ($('regarding-q') as HTMLInputElement).value.trim();
+  if (query.length < 2) {
+    setRegardingStatus('Type at least 2 characters.');
+    return;
+  }
+  try {
+    setRegardingStatus('Searching…');
+    const records = await searchRecords(session.token, query);
+    renderRecords(records);
+    setRegardingStatus(records.length ? '' : 'No records found.');
+  } catch (e) {
+    setRegardingStatus(`Search failed: ${(e as Error).message}`, 'error');
+  }
+}
+
+function renderRecords(records: RecordCandidate[]): void {
+  const list = $('regarding-results');
+  list.innerHTML = '';
+  for (const record of records) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'link';
+    btn.textContent = `${record.label} · ${record.type.replace('CRM.', '')}`;
+    btn.addEventListener('click', () => void onSetRegarding(record));
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+}
+
+async function onSetRegarding(record: RecordCandidate): Promise<void> {
+  if (!session || loggedLedgerId === undefined) return;
+  try {
+    setRegardingStatus(`Linking to ${record.label}…`);
+    await setRegarding(session.token, loggedLedgerId, record.id, record.type);
+    setRegardingStatus(`Regarding set: ${record.label}`, 'ok');
+    $('regarding-results').innerHTML = '';
+  } catch (e) {
+    setRegardingStatus(`Set Regarding failed: ${(e as Error).message}`, 'error');
   }
 }
 
@@ -113,6 +178,10 @@ Office.onReady((info) => {
 
   $('signin-btn').addEventListener('click', () => void onSignIn());
   $('log-btn').addEventListener('click', () => void onLog());
+  $('regarding-search-btn').addEventListener('click', () => void onRegardingSearch());
+  ($('regarding-q') as HTMLInputElement).addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') void onRegardingSearch();
+  });
 
   // Hint the mailbox the pane is loaded against.
   try {
