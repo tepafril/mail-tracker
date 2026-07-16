@@ -44,11 +44,32 @@ class TenantResolver
         tenancy()->initialize($tenant);
 
         try {
-            $match = $identity->provider->isMicrosoft()
-                ? ['provider' => $identity->provider->value, 'entra_oid' => $identity->subject]
-                : ['provider' => $identity->provider->value, 'google_sub' => $identity->subject];
+            if ($identity->provider->isMicrosoft()) {
+                $user = User::query()
+                    ->where('provider', $identity->provider->value)
+                    ->where('entra_oid', $identity->subject)
+                    ->first();
 
-            $user = User::query()->firstOrNew($match);
+                // Reuse a mailbox enrolled without a sign-in (admin-managed tracked list:
+                // entra_oid is null, matched by email) and backfill the stable oid, so a
+                // first sign-in adopts the enrolled row instead of creating a duplicate.
+                if ($user === null && $identity->email !== null) {
+                    $user = User::query()
+                        ->where('provider', $identity->provider->value)
+                        ->whereNull('entra_oid')
+                        ->where('email', $identity->email)
+                        ->first();
+                }
+
+                $user ??= new User;
+                $user->entra_oid = $identity->subject;
+            } else {
+                $user = User::query()->firstOrNew([
+                    'provider' => $identity->provider->value,
+                    'google_sub' => $identity->subject,
+                ]);
+            }
+
             $user->tenant_id = $tenant->id;
             $user->provider = $identity->provider;
 

@@ -199,7 +199,10 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+            // Process every queue the app dispatches to. LogEmailActivityJob (the SMOH
+            // write) and webhook-triggered jobs use 'webhooks'; Gmail push uses 'sync'.
+            // Omitting these silently strands those jobs (rows stuck 'pending').
+            'queue' => ['default', 'webhooks', 'sync'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
