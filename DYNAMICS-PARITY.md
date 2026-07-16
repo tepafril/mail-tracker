@@ -36,7 +36,7 @@ Two tracking modes, plus a set of behaviors:
 | Match sender/recipient to CRM | `resolveRecipient` (contact → lead → account) | ✅ **Done (Phase C)** |
 | Auto-track only known contacts | `known_contacts` rule (default) | ✅ Have |
 | Configurable tracking rules | `TrackRule`: all / known_contacts / none (per mailbox) | ✅ **Done (Phase A)** |
-| Set Regarding to a parent record | Backend done (search + set/change regarding); add-in picker pending | ⚠️ **Backend done (Phase B)** |
+| Set Regarding to a parent record | Backend (search + set/change) + add-in task-pane picker | ✅ **Done (Phase B)** |
 | Dedup by Message-ID | Message-ID + synthetic key | ✅ Have |
 | Conversation correlation / "responses to CRM email" | partial subject/synthetic keying | ⚠️ Partial |
 | Attachments on the activity | not captured | ❌ Gap |
@@ -66,11 +66,11 @@ deferred to Phase D. (Below: original notes.)
 - Set the rule via `mail-tracker:track-mailbox … --rule=known_contacts`.
 - Files: new `App\Enums\TrackRule`, migration on `users`, `TrackMailboxCommand`, `LogEmailActivityJob`.
 
-### Phase B — Set Regarding (link to parent records) — ⚙️ BACKEND DONE (2026-07-16)
-Shipped backend: `SmohClient::searchRecords()` + `setActivityRegarding()`, `GET /api/v1/records?q=`
-(`RecordSearchController`), `POST /api/v1/activities/{ledger}/regarding` (`SetRegardingController`),
-mock SMOH contains-search + PATCH. Verified live. **Remaining: the add-in Set Regarding picker
-UI** (task pane — search a record, link the email), which needs a webpack rebuild + sideload.
+### Phase B — Set Regarding (link to parent records) — ✅ DONE (2026-07-16)
+Shipped: backend `SmohClient::searchRecords()` + `setActivityRegarding()`, `GET /api/v1/records?q=`,
+`POST /api/v1/activities/{ledger}/regarding`, mock SMOH contains-search + PATCH; **and the add-in
+task-pane picker** (search contacts/leads/accounts → click to link the logged email). Also fixed:
+the track rule gates AUTO (sync) tracking only — a manual "Log to CRM" always logs. Verified live.
 (Below: original notes.)
 - Extend the SMOH contract to fetch those record types + accept an arbitrary regarding
   target: [packages/core/src/smoh/contract.ts](packages/core/src/smoh/contract.ts),
